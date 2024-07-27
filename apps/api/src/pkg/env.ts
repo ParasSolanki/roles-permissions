@@ -6,7 +6,6 @@ export const environment = z
 
 export const env = z.object({
   ENVIRONMENT: environment,
-  HOSTNAME: z.string().min(1),
   ALLOWED_ORIGIN: z.string().url(),
   TOKEN_SECRET: z.string().min(1),
   DATABASE_URL: z.string().min(1),
