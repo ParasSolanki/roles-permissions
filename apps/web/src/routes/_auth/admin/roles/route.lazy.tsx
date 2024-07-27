@@ -4,7 +4,6 @@ import {
   createRoleSchema,
   deleteRoleResponseSchema,
   getPaginatedRolesResponseSchema,
-  updateRoleResponseSchema,
   updateRoleSchema,
 } from "@roles-permissions/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -84,7 +83,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useDebounceCallback } from "usehooks-ts";
-import { z, ZodError } from "zod";
+import { z } from "zod";
 
 export const Route = createLazyFileRoute("/_auth/admin/roles")({
   component: RolePage,
@@ -197,7 +196,7 @@ function CreateRoleDialog() {
   const [open, setOpen] = React.useState(false);
   const { isPending, mutate } = useMutation({
     mutationKey: ["roles", "add"],
-    mutationFn: async (values: Role) => {
+    mutationFn: async (values: unknown) => {
       const res = await api.post("roles", { json: values });
 
       return createRoleResponseSchema.parse(await res.json());

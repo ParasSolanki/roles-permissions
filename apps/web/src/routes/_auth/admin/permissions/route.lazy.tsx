@@ -316,12 +316,7 @@ interface PermissionTableActionProps {
   row: Row<Permission>;
 }
 
-export function PermissionTableActions({
-  row,
-  table,
-}: PermissionTableActionProps) {
-  const user = row.original;
-  const navigate = useNavigate();
+export function PermissionTableActions(_props: PermissionTableActionProps) {
   //   const queryClient = useQueryClient();
 
   const [open, setOpen] = React.useState(false);

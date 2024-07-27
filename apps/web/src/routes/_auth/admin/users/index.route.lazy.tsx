@@ -106,7 +106,7 @@ const columns: ColumnDef<User>[] = [
   },
   {
     id: "roleName",
-    accessorFn: ({ role }) => role.name,
+    accessorFn: ({ role }) => role?.name,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Role" />
     ),
