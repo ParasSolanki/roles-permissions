@@ -21,8 +21,6 @@ export function createLucia(opts: LuciaOptions) {
       expires: true,
       attributes: {
         sameSite: "none",
-        domain: "roles-permissions.pages.dev",
-        path: "/",
         // set to `true` when using HTTPS
         secure: opts.environment === "production",
       },
