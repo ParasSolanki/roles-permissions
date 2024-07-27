@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   badRequestErrorResponse,
+  conflictErrorResponse,
   forbiddenErrorResponse,
   internalServerErrorResponse,
   requestTimeoutErrorResponse,
@@ -101,6 +102,7 @@ export const createRoleRoute = createRoute({
     ...unauthorizedErrorResponse,
     ...forbiddenErrorResponse,
     ...requestTimeoutErrorResponse,
+    ...conflictErrorResponse,
     ...tooManyRequestsErrorResponse,
     ...internalServerErrorResponse,
   },
@@ -136,6 +138,7 @@ export const updateRoleRoute = createRoute({
     ...unauthorizedErrorResponse,
     ...forbiddenErrorResponse,
     ...requestTimeoutErrorResponse,
+    ...conflictErrorResponse,
     ...tooManyRequestsErrorResponse,
     ...internalServerErrorResponse,
   },

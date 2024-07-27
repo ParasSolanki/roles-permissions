@@ -43,7 +43,8 @@ route.openapi(getPaginatedPermissionsRoute, async (c) => {
 
   try {
     const nameFilter = name
-      ? like(sql`COALESCE(${permissionsTable.name},'')`, `${name}%`)
+      ? // @ts-expect-error
+        like(sql`COALESCE(${permissionsTable.name},'')`, `${name}%`)
       : undefined;
     const roleFilter = Array.isArray(role)
       ? inArray(rolesTable.name, role)

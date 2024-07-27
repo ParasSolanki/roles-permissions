@@ -8,17 +8,22 @@ import { secureHeaders } from "hono/secure-headers";
 import { requestId } from "hono/request-id";
 import { timeout } from "hono/timeout";
 import { timing } from "hono/timing";
-import { badRequestError, requestTimeoutError } from "./errors/http.js";
 import { init } from "./middleware/init.js";
-import { PublicEnv } from "./types/types.js";
+import { ProtectedEnv, PublicEnv } from "./types/types.js";
 
-export function createApp() {
-  const app = new OpenAPIHono<PublicEnv>({
+export function createApp<Env extends PublicEnv>() {
+  const app = new OpenAPIHono<Env>({
     defaultHook: (result, c) => {
       if (!result.success) {
-        return badRequestError(c, {
-          errors: result.error.flatten().fieldErrors,
-        });
+        return c.json(
+          {
+            ok: false,
+            code: "BAD_REQUEST",
+            message: "Wrong data",
+            errors: result.error.flatten().fieldErrors,
+          },
+          400
+        );
       }
     },
   });
@@ -36,16 +41,27 @@ export function createApp() {
   });
 
   app.use("*", prettyJSON());
+
   app.use("*", requestId());
   app.use("*", logger());
+  app.use(
+    "*",
+    // @ts-expect-error
+    timeout(30_000, (c) => {
+      return c.json(
+        {
+          ok: false,
+          code: "REQUEST_TIMEOUT",
+          message: "Request timed out",
+        },
+        408
+      );
+    }) // 30 sec timeout
+  );
   app.use("*", init());
   app.use("*", timing());
   app.use("*", secureHeaders());
-  app.use(
-    "*",
-    // @ts-expect-error return json response
-    timeout(30_000, (c) => requestTimeoutError(c)) // 30 sec timeout
-  );
+
   app.use("*", csrf());
   app.use(
     "*",
@@ -60,7 +76,7 @@ export function createApp() {
 }
 
 export function createProtectedApp() {
-  const app = createApp();
+  const app = createApp<ProtectedEnv>();
   app.use("*", auth());
 
   return app;

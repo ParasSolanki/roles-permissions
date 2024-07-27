@@ -1,4 +1,5 @@
 import {
+  DB,
   permissionsTable,
   rolePermissionsTable,
   rolesTable,
@@ -83,7 +84,9 @@ route.openapi(signupRoute, async (c) => {
           roleId: memberRole[0].id,
           email,
         })
-        .returning();
+        .returning({
+          id: usersTable.id,
+        });
       const hashedPassword = await hashPassword(password);
 
       await tx.insert(userPasswordsTable).values({
@@ -100,6 +103,10 @@ route.openapi(signupRoute, async (c) => {
       return user;
     });
 
+    const { data, error } = await getUser({ db, userId: user.id });
+
+    if (error || !data) throw new Error("Something went wrong");
+
     const session = await lucia.createSession(user.id, {});
 
     const sessionCookie = lucia.createSessionCookie(session.id).serialize();
@@ -109,7 +116,9 @@ route.openapi(signupRoute, async (c) => {
     return c.json(
       {
         ok: true,
-        data: { user: { ...user, provider: PROVIDER_KEYS.EMAIL } },
+        data: {
+          user: data,
+        },
       },
       201
     );
@@ -177,11 +186,6 @@ route.openapi(signinRoute, async (c) => {
     const [user] = await db
       .select({
         id: usersTable.id,
-        email: usersTable.email,
-        displayName: usersTable.displayName,
-        avatarUrl: usersTable.avatarUrl,
-        createdAt: usersTable.createdAt,
-        updatedAt: usersTable.updatedAt,
         hashedPassword: userPasswordsTable.hashedPassword,
       })
       .from(usersTable)
@@ -197,20 +201,22 @@ route.openapi(signinRoute, async (c) => {
       return badRequestError(c, { message: "Incorrect email or password" });
     }
 
-    const { hashedPassword, ...userWithoutPassword } = user;
-
     // user does not have password
-    if (!hashedPassword) {
+    if (!user.hashedPassword) {
       return badRequestError(c, { message: "Incorrect email or password" });
     }
 
-    const isPasswordValid = await verifyPassword(hashedPassword, password);
+    const isPasswordValid = await verifyPassword(user.hashedPassword, password);
 
     if (!isPasswordValid) {
       return badRequestError(c, { message: "Incorrect email or password" });
     }
 
-    const session = await lucia.createSession(userWithoutPassword.id, {});
+    const { data, error } = await getUser({ db, userId: user.id });
+
+    if (error || !data) throw new Error("Something went wrong");
+
+    const session = await lucia.createSession(user.id, {});
 
     const sessionCookie = lucia.createSessionCookie(session.id).serialize();
 
@@ -220,7 +226,7 @@ route.openapi(signinRoute, async (c) => {
       {
         ok: true,
         data: {
-          user: { ...userWithoutPassword, provider: PROVIDER_KEYS.EMAIL },
+          user: data,
         },
       },
       200
@@ -253,84 +259,15 @@ route.openapi(sessionRoute, async (c) => {
       c.header("Set-Cookie", newSessionCookie, { append: true });
     }
 
-    const userPermissionsSubquery = db
-      .select({
-        userId: userPermissionsTable.userId,
-        permissionId: userPermissionsTable.permissionId,
-      })
-      .from(userPermissionsTable)
-      .where(eq(userPermissionsTable.userId, sessionUser.id))
-      .as("up");
+    const { data, error } = await getUser({ db, userId: sessionUser.id });
 
-    const rolePermissionsSubquery = db
-      .select({
-        userId: usersTable.id,
-        permissionId: rolePermissionsTable.permissionId,
-      })
-      .from(rolePermissionsTable)
-      .innerJoin(usersTable, eq(rolePermissionsTable.roleId, usersTable.roleId))
-      .where(eq(usersTable.id, sessionUser.id));
-
-    const combinedPermissions = db
-      .select()
-      .from(userPermissionsSubquery)
-      .union(rolePermissionsSubquery)
-      .as("cp");
-
-    const permissionsSubquery = db
-      .select({
-        userId: combinedPermissions.userId,
-        permissions: sql`json_group_array(${permissionsTable.name})`
-          .mapWith(String)
-          .as("permissions"),
-      })
-      .from(permissionsTable)
-      .innerJoin(
-        combinedPermissions,
-        eq(permissionsTable.id, combinedPermissions.permissionId)
-      )
-      .where(eq(combinedPermissions.userId, sessionUser.id))
-      .as("p");
-
-    const [user] = await db
-      .select({
-        id: usersTable.id,
-        displayName: usersTable.displayName,
-        email: usersTable.email,
-        avatarUrl: usersTable.avatarUrl,
-        createdAt: usersTable.createdAt,
-        updatedAt: usersTable.updatedAt,
-        role: {
-          id: rolesTable.id,
-          name: rolesTable.name,
-        },
-        permissions: permissionsSubquery.permissions,
-      })
-      .from(usersTable)
-      .leftJoin(rolesTable, eq(rolesTable.id, usersTable.roleId))
-      .leftJoin(
-        permissionsSubquery,
-        eq(permissionsSubquery.userId, usersTable.id)
-      )
-      .where(eq(usersTable.id, sessionUser.id));
-
-    const parsedPermissions = JSON.parse(user.permissions);
-    const permissions = Array.isArray(parsedPermissions)
-      ? parsedPermissions.reduce<Record<string, boolean>>((all, p) => {
-          all[p] = true;
-          return all;
-        }, {})
-      : {};
+    if (error || !data) throw new Error("Something went wrong");
 
     return c.json(
       {
         ok: true,
         data: {
-          user: {
-            ...user,
-            permissions,
-            provider: "email",
-          },
+          user: data,
         },
       },
       200
@@ -389,3 +326,91 @@ route.openapi(csrfRoute, async (c) => {
     200
   );
 });
+
+async function getUser({ db, userId }: { db: DB; userId: string }) {
+  try {
+    const userPermissionsSubquery = db
+      .select({
+        userId: userPermissionsTable.userId,
+        permissionId: userPermissionsTable.permissionId,
+      })
+      .from(userPermissionsTable)
+      .where(eq(userPermissionsTable.userId, userId))
+      .as("up");
+
+    const rolePermissionsSubquery = db
+      .select({
+        userId: usersTable.id,
+        permissionId: rolePermissionsTable.permissionId,
+      })
+      .from(rolePermissionsTable)
+      .innerJoin(usersTable, eq(rolePermissionsTable.roleId, usersTable.roleId))
+      .where(eq(usersTable.id, userId));
+
+    const combinedPermissions = db
+      .select()
+      .from(userPermissionsSubquery)
+      .union(rolePermissionsSubquery)
+      .as("cp");
+
+    const permissionsSubquery = db
+      .select({
+        userId: combinedPermissions.userId,
+        permissions: sql`json_group_array(${permissionsTable.name})`
+          .mapWith(String)
+          .as("permissions"),
+      })
+      .from(permissionsTable)
+      .innerJoin(
+        combinedPermissions,
+        eq(permissionsTable.id, combinedPermissions.permissionId)
+      )
+      .where(eq(combinedPermissions.userId, userId))
+      .as("p");
+
+    const [user] = await db
+      .select({
+        id: usersTable.id,
+        displayName: usersTable.displayName,
+        email: usersTable.email,
+        avatarUrl: usersTable.avatarUrl,
+        createdAt: usersTable.createdAt,
+        updatedAt: usersTable.updatedAt,
+        role: {
+          id: rolesTable.id,
+          name: rolesTable.name,
+        },
+        permissions: permissionsSubquery.permissions,
+      })
+      .from(usersTable)
+      .leftJoin(rolesTable, eq(rolesTable.id, usersTable.roleId))
+      .leftJoin(
+        permissionsSubquery,
+        eq(permissionsSubquery.userId, usersTable.id)
+      )
+      .where(eq(usersTable.id, userId));
+
+    const role = user.role;
+
+    if (!role) throw new Error("User role does not exists");
+
+    const parsedPermissions = JSON.parse(user.permissions);
+    const permissions = Array.isArray(parsedPermissions)
+      ? parsedPermissions.reduce<Record<string, boolean>>((all, p) => {
+          all[p] = true;
+          return all;
+        }, {})
+      : {};
+
+    const data = {
+      ...user,
+      role,
+      permissions,
+      provider: "email",
+    };
+
+    return { data, error: undefined };
+  } catch (e) {
+    return { data: undefined, error: e };
+  }
+}

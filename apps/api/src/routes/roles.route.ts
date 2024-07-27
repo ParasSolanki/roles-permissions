@@ -46,7 +46,8 @@ route.openapi(getPaginatedRolesRoute, async (c) => {
 
   try {
     const nameFilter = name
-      ? like(sql`COALESCE(${rolesTable.name},'')`, `${name}%`)
+      ? // @ts-expect-error
+        like(sql`COALESCE(${rolesTable.name},'')`, `${name}%`)
       : undefined;
 
     const [roles, total] = await Promise.all([

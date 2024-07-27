@@ -1,19 +1,11 @@
 // Constants
 const SALT_LENGTH = 32;
-const ENCODING = "hex";
 
 // Helper function to convert ArrayBuffer to hexadecimal string
 function buf2hex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-}
-
-// Helper function to convert hexadecimal string to Uint8Array
-function hex2buf(hex: string): Uint8Array {
-  return new Uint8Array(
-    hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-  );
 }
 
 async function generateSalt(): Promise<string> {

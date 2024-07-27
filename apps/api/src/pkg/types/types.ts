@@ -28,3 +28,4 @@ export interface ProtectedEnv extends PublicEnv {
 
 export type PublicContext = _Context<PublicEnv>;
 export type ProtectedContext = _Context<ProtectedEnv>;
+export type Context = PublicContext | ProtectedContext;

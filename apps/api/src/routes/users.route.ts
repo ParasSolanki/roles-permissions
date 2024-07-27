@@ -74,7 +74,8 @@ route.openapi(getPaginatedUsersRoute, async (c) => {
 
   try {
     const nameFilter = name
-      ? like(sql`COALESCE(${usersTable.displayName},'')`, `${name}%`)
+      ? // @ts-expect-error
+        like(sql`COALESCE(${usersTable.displayName},'')`, `${name}%`)
       : undefined;
     const roleFilter = Array.isArray(role)
       ? inArray(rolesTable.name, role)

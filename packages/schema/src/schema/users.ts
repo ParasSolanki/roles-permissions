@@ -61,10 +61,12 @@ export const paginatedUsersResponseSchema = successSchema.extend({
         email: z.string(),
         displayName: z.string().nullable(),
         avatarUrl: z.string().nullable(),
-        role: z.object({
-          id: z.string(),
-          name: z.string(),
-        }),
+        role: z
+          .object({
+            id: z.string(),
+            name: z.string(),
+          })
+          .nullable(),
         createdAt: z.string(),
         updatedAt: z.string().nullable(),
       })
@@ -84,10 +86,12 @@ export const getUserDetailsResponseSchema = successSchema.extend({
       email: z.string(),
       displayName: z.string().nullable(),
       avatarUrl: z.string().nullable(),
-      role: z.object({
-        id: z.string(),
-        name: z.string(),
-      }),
+      role: z
+        .object({
+          id: z.string(),
+          name: z.string(),
+        })
+        .nullable(),
       permissions: z.record(z.string(), z.boolean()),
       createdAt: z.string(),
       updatedAt: z.string().nullable(),

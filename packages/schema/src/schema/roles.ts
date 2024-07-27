@@ -74,11 +74,13 @@ export const createRoleSchema = z.object({
 
 export const createRoleResponseSchema = successSchema.extend({
   data: z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string().nullable(),
+    role: z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string().nullable(),
+      createdAt: z.string(),
+      updatedAt: z.string().nullable(),
+    }),
   }),
 });
 

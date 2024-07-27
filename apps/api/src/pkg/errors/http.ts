@@ -1,4 +1,4 @@
-import type { PublicContext as Context } from "../types/types.js";
+import type { Context } from "../types/types.js";
 
 interface RequestError {
   message?: string;
@@ -18,7 +18,7 @@ export function badRequestError(c: Context, error?: BadRequestError) {
   return c.json(
     {
       ok: false,
-      code: "BAD_REQUEST",
+      code: "BAD_REQUEST" as "BAD_REQUEST",
       message: error?.message ?? "Wrong data passed",
       errors: error?.errors,
     },
@@ -30,7 +30,7 @@ export function unauthorizedError(c: Context, error?: RequestError) {
   return c.json(
     {
       ok: false,
-      code: "UNAUTHORIZED",
+      code: "UNAUTHORIZED" as "UNAUTHORIZED",
       message: error?.message ?? "Not authorized",
     },
     401
@@ -41,7 +41,7 @@ export function forbiddenError(c: Context, error?: RequestError) {
   return c.json(
     {
       ok: false,
-      code: "FORBIDDEN",
+      code: "FORBIDDEN" as "FORBIDDEN",
       message: error?.message ?? "Forbidden",
     },
     403
@@ -52,7 +52,7 @@ export function notFoundError(c: Context, message: string) {
   return c.json(
     {
       ok: false,
-      code: "NOT_FOUND",
+      code: "NOT_FOUND" as "NOT_FOUND",
       message,
     },
     404
@@ -63,7 +63,7 @@ export function requestTimeoutError(c: Context) {
   return c.json(
     {
       ok: false,
-      code: "REQUEST_TIMEOUT",
+      code: "REQUEST_TIMEOUT" as "REQUEST_TIMEOUT",
       message: "Request timed out",
     },
     408
@@ -74,7 +74,7 @@ export function conflictError(c: Context, error: { message: string }) {
   return c.json(
     {
       ok: false,
-      code: "CONFLICT",
+      code: "CONFLICT" as "CONFLICT",
       message: error.message,
     },
     409
@@ -85,7 +85,7 @@ export function tooManyRequestsError(c: Context) {
   return c.json(
     {
       ok: false,
-      code: "TOO_MANY_REQUESTS",
+      code: "TOO_MANY_REQUESTS" as "TOO_MANY_REQUESTS",
       message: "Too many requests, please try again later",
     },
     429
@@ -96,7 +96,7 @@ export function internalServerError(c: Context, error?: RequestError) {
   return c.json(
     {
       ok: false,
-      code: "INTERNAL_SERVER_ERROR",
+      code: "INTERNAL_SERVER_ERROR" as "INTERNAL_SERVER_ERROR",
       message: error?.message ?? "Something went wrong",
     },
     500

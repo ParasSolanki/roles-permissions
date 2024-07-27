@@ -25,7 +25,7 @@ export const authUserSchema = z.object({
     id: z.string(),
     name: z.string(),
   }),
-  permissions: z.record(z.string(), z.boolean()),
+  permissions: z.record(z.string(), z.boolean().default(true)),
   createdAt: z.string(),
   updatedAt: z.string().nullable(),
 });
