@@ -7,6 +7,10 @@
     "build:web": "pnpm --filter ./apps/web run build",
     "build:api": "pnpm --filter ./apps/api run build"
   },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "packageManager": "pnpm@8.15.4",
   "keywords": [],
   "author": "",
   "license": "ISC"
