@@ -1,0 +1,41 @@
+{
+  "name": "@roles-permissions/db",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./src/index.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx ./src/migrate.ts",
+    "db:seed": "tsx ./src/seed.ts"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.6.4",
+    "@libsql/client": "^0.7.0",
+    "@t3-oss/env-core": "^0.10.1",
+    "drizzle-orm": "^0.32.1",
+    "nanoid": "^5.0.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.23.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}

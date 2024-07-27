@@ -1,0 +1,13 @@
+{
+  "name": "roles-permissions",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:web": "pnpm --filter ./apps/web run build",
+    "build:api": "pnpm --filter ./apps/api run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

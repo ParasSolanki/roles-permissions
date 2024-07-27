@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+      "target": "ESNext",
+  
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
+      "baseUrl": ".",
+  
+      "declaration": true,
+      "allowJs": true /* Allow JavaScript files to be a part of your program. Use the 'checkJS' option to get errors from these files. */,
+  
+      "esModuleInterop": true /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */,
+  
+      "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
+  
+      /* Type Checking */
+      "strict": true /* Enable all strict type-checking options. */,
+      "noImplicitAny": true /* Enable error reporting for expressions and declarations with an implied 'any' type. */,
+      "strictNullChecks": true /* When type checking, take into account 'null' and 'undefined'. */,
+  
+      "noUnusedLocals": true /* Enable error reporting when local variables aren't read. */,
+      "noUnusedParameters": true /* Raise an error when a function parameter isn't read. */,
+  
+      "noUncheckedIndexedAccess": true /* Add 'undefined' to a type when accessed using an index. */,
+  
+      "skipLibCheck": true /* Skip type checking all .d.ts files. */
+    }
+  }
