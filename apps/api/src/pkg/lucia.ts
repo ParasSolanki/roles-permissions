@@ -20,7 +20,7 @@ export function createLucia(opts: LuciaOptions) {
       name: "role-permission-session",
       expires: true,
       attributes: {
-        sameSite: "lax",
+        sameSite: "none",
         domain: "roles-permissions.pages.dev",
         path: "/",
         // set to `true` when using HTTPS
