@@ -68,7 +68,7 @@ export function UserMenu() {
 
   const user = data?.data.user;
 
-  const isAdmin = user?.role.name === "ADMIN";
+  const isAdmin = user?.role?.name === "ADMIN";
 
   return (
     <DropdownMenu>

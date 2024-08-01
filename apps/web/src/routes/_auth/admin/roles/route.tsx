@@ -6,14 +6,14 @@ export const Route = createFileRoute("/_auth/admin/roles")({
   validateSearch: rolesSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
   beforeLoad: ({ context }) => {
-    if (context.authState.user?.role.name !== "ADMIN") {
+    if (context.authState.user?.role?.name !== "ADMIN") {
       throw redirect({
         to: "/",
       });
     }
   },
   shouldReload({ context }) {
-    return context.authState.user?.role.name !== "ADMIN";
+    return context.authState.user?.role?.name !== "ADMIN";
   },
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     await queryClient.ensureQueryData(
