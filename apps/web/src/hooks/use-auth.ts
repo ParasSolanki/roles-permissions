@@ -58,8 +58,15 @@ export function useSession() {
   const session = useQuery(meQuries.session());
 
   if (session.data) {
+    const user = {
+      ...session.data.data.user,
+      permissions: {
+        ...session.data.data.user.rolePermissions,
+        ...session.data.data.user.userPermissions,
+      },
+    };
     authStore.setIsAuthenticated(true);
-    authStore.setUser(session.data.data.user);
+    authStore.setUser(user);
   }
 
   // unauthorized

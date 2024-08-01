@@ -92,7 +92,8 @@ export const getUserDetailsResponseSchema = successSchema.extend({
           name: z.string(),
         })
         .nullable(),
-      permissions: z.record(z.string(), z.boolean()),
+      rolePermissions: z.record(z.string(), z.boolean()),
+      userPermissions: z.record(z.string(), z.boolean()),
       createdAt: z.string(),
       updatedAt: z.string().nullable(),
     }),

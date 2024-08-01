@@ -329,44 +329,36 @@ route.openapi(csrfRoute, async (c) => {
 
 async function getUser({ db, userId }: { db: DB; userId: string }) {
   try {
-    const userPermissionsSubquery = db
-      .select({
-        userId: userPermissionsTable.userId,
-        permissionId: userPermissionsTable.permissionId,
-      })
-      .from(userPermissionsTable)
-      .where(eq(userPermissionsTable.userId, userId))
-      .as("up");
-
     const rolePermissionsSubquery = db
       .select({
         userId: usersTable.id,
-        permissionId: rolePermissionsTable.permissionId,
-      })
-      .from(rolePermissionsTable)
-      .innerJoin(usersTable, eq(rolePermissionsTable.roleId, usersTable.roleId))
-      .where(eq(usersTable.id, userId));
-
-    const combinedPermissions = db
-      .select()
-      .from(userPermissionsSubquery)
-      .union(rolePermissionsSubquery)
-      .as("cp");
-
-    const permissionsSubquery = db
-      .select({
-        userId: combinedPermissions.userId,
         permissions: sql`json_group_array(${permissionsTable.name})`
           .mapWith(String)
-          .as("permissions"),
+          .as("role_permissions"),
       })
-      .from(permissionsTable)
+      .from(rolePermissionsTable)
+      .innerJoin(usersTable, eq(usersTable.roleId, rolePermissionsTable.roleId))
       .innerJoin(
-        combinedPermissions,
-        eq(permissionsTable.id, combinedPermissions.permissionId)
+        permissionsTable,
+        eq(permissionsTable.id, rolePermissionsTable.permissionId)
       )
-      .where(eq(combinedPermissions.userId, userId))
-      .as("p");
+      .where(eq(usersTable.id, userId))
+      .as("rp");
+
+    const userPermissionsSubquery = db
+      .select({
+        userId: userPermissionsTable.userId,
+        permissions: sql`json_group_array(${permissionsTable.name})`
+          .mapWith(String)
+          .as("user_permissions"),
+      })
+      .from(userPermissionsTable)
+      .where(eq(userPermissionsTable.userId, userId))
+      .innerJoin(
+        permissionsTable,
+        eq(permissionsTable.id, userPermissionsTable.permissionId)
+      )
+      .as("up");
 
     const [user] = await db
       .select({
@@ -380,13 +372,18 @@ async function getUser({ db, userId }: { db: DB; userId: string }) {
           id: rolesTable.id,
           name: rolesTable.name,
         },
-        permissions: permissionsSubquery.permissions,
+        rolePermissions: rolePermissionsSubquery.permissions,
+        userPermissions: userPermissionsSubquery.permissions,
       })
       .from(usersTable)
       .leftJoin(rolesTable, eq(rolesTable.id, usersTable.roleId))
       .leftJoin(
-        permissionsSubquery,
-        eq(permissionsSubquery.userId, usersTable.id)
+        userPermissionsSubquery,
+        eq(userPermissionsSubquery.userId, usersTable.id)
+      )
+      .leftJoin(
+        rolePermissionsSubquery,
+        eq(rolePermissionsSubquery.userId, usersTable.id)
       )
       .where(eq(usersTable.id, userId));
 
@@ -394,23 +391,27 @@ async function getUser({ db, userId }: { db: DB; userId: string }) {
 
     if (!role) throw new Error("User role does not exists");
 
-    const parsedPermissions = JSON.parse(user.permissions);
-    const permissions = Array.isArray(parsedPermissions)
-      ? parsedPermissions.reduce<Record<string, boolean>>((all, p) => {
-          all[p] = true;
-          return all;
-        }, {})
-      : {};
-
     const data = {
       ...user,
       role,
-      permissions,
+      rolePermissions: getParsedPermissions(user.rolePermissions),
+      userPermissions: getParsedPermissions(user.userPermissions),
       provider: "email",
     };
 
     return { data, error: undefined };
   } catch (e) {
+    console.log(e);
     return { data: undefined, error: e };
   }
+}
+
+function getParsedPermissions(permissions: string) {
+  const parsedPermissions = JSON.parse(permissions);
+  return Array.isArray(parsedPermissions)
+    ? parsedPermissions.reduce<Record<string, boolean>>((all, p) => {
+        all[p] = true;
+        return all;
+      }, {})
+    : {};
 }

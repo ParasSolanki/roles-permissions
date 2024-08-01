@@ -140,47 +140,39 @@ route.use(
 
 route.openapi(getUserDetailsRoute, async (c) => {
   const db = c.get("db");
-  const { id } = c.req.valid("param");
+  const userId = c.req.valid("param").id;
 
   try {
-    const userPermissionsSubquery = db
-      .select({
-        userId: userPermissionsTable.userId,
-        permissionId: userPermissionsTable.permissionId,
-      })
-      .from(userPermissionsTable)
-      .where(eq(userPermissionsTable.userId, id))
-      .as("up");
-
     const rolePermissionsSubquery = db
       .select({
         userId: usersTable.id,
-        permissionId: rolePermissionsTable.permissionId,
-      })
-      .from(rolePermissionsTable)
-      .innerJoin(usersTable, eq(rolePermissionsTable.roleId, usersTable.roleId))
-      .where(eq(usersTable.id, id));
-
-    const combinedPermissions = db
-      .select()
-      .from(userPermissionsSubquery)
-      .union(rolePermissionsSubquery)
-      .as("cp");
-
-    const permissionsSubquery = db
-      .select({
-        userId: combinedPermissions.userId,
         permissions: sql`json_group_array(${permissionsTable.name})`
           .mapWith(String)
-          .as("permissions"),
+          .as("role_permissions"),
       })
-      .from(permissionsTable)
+      .from(rolePermissionsTable)
+      .innerJoin(usersTable, eq(usersTable.roleId, rolePermissionsTable.roleId))
       .innerJoin(
-        combinedPermissions,
-        eq(permissionsTable.id, combinedPermissions.permissionId)
+        permissionsTable,
+        eq(permissionsTable.id, rolePermissionsTable.permissionId)
       )
-      .where(eq(combinedPermissions.userId, id))
-      .as("p");
+      .where(eq(usersTable.id, userId))
+      .as("rp");
+
+    const userPermissionsSubquery = db
+      .select({
+        userId: userPermissionsTable.userId,
+        permissions: sql`json_group_array(${permissionsTable.name})`
+          .mapWith(String)
+          .as("user_permissions"),
+      })
+      .from(userPermissionsTable)
+      .where(eq(userPermissionsTable.userId, userId))
+      .innerJoin(
+        permissionsTable,
+        eq(permissionsTable.id, userPermissionsTable.permissionId)
+      )
+      .as("up");
 
     const [user] = await db
       .select({
@@ -194,27 +186,24 @@ route.openapi(getUserDetailsRoute, async (c) => {
           id: rolesTable.id,
           name: rolesTable.name,
         },
-        permissions: permissionsSubquery.permissions,
+        rolePermissions: rolePermissionsSubquery.permissions,
+        userPermissions: userPermissionsSubquery.permissions,
       })
       .from(usersTable)
       .leftJoin(rolesTable, eq(rolesTable.id, usersTable.roleId))
       .leftJoin(
-        permissionsSubquery,
-        eq(permissionsSubquery.userId, usersTable.id)
+        userPermissionsSubquery,
+        eq(userPermissionsSubquery.userId, usersTable.id)
       )
-      .where(eq(usersTable.id, id));
+      .leftJoin(
+        rolePermissionsSubquery,
+        eq(rolePermissionsSubquery.userId, usersTable.id)
+      )
+      .where(eq(usersTable.id, userId));
 
     if (!user) {
       return notFoundError(c, "User does not exists");
     }
-
-    const parsedPermissions = JSON.parse(user.permissions);
-    const permissions = Array.isArray(parsedPermissions)
-      ? parsedPermissions.reduce<Record<string, boolean>>((all, p) => {
-          all[p] = true;
-          return all;
-        }, {})
-      : {};
 
     return c.json(
       {
@@ -222,7 +211,8 @@ route.openapi(getUserDetailsRoute, async (c) => {
         data: {
           user: {
             ...user,
-            permissions,
+            rolePermissions: getParsedPermissions(user.rolePermissions),
+            userPermissions: getParsedPermissions(user.userPermissions),
           },
         },
       },
@@ -232,3 +222,13 @@ route.openapi(getUserDetailsRoute, async (c) => {
     return internalServerError(c);
   }
 });
+
+function getParsedPermissions(permissions: string) {
+  const parsedPermissions = JSON.parse(permissions);
+  return Array.isArray(parsedPermissions)
+    ? parsedPermissions.reduce<Record<string, boolean>>((all, p) => {
+        all[p] = true;
+        return all;
+      }, {})
+    : {};
+}

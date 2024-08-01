@@ -18,6 +18,10 @@ export const usersSearchSchema = z.object({
 
 export const userIdSchema = z.string();
 
+export type UserDetails = z.output<
+  typeof getUserDetailsResponseSchema
+>["data"]["user"];
+
 export const usersKeys = {
   all: ["users"] as const,
   list: (values: z.infer<typeof getPaginatedUsersSearchSchema>) =>

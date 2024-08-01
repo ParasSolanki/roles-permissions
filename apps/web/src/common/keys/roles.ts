@@ -2,8 +2,9 @@ import {
   getAllRolesResponseSchema,
   getPaginatedRolesResponseSchema,
   getPaginatedRolesSearchSchema,
+  getRolePermissionsResponseSchema,
 } from "@roles-permissions/schema";
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, skipToken } from "@tanstack/react-query";
 import { api } from "~/utils/api-client";
 import { z } from "zod";
 
@@ -13,10 +14,14 @@ export const rolesSearchSchema = z.object({
   perPage: getPaginatedRolesSearchSchema.shape.perPage.catch(20),
 });
 
+export const roleIdSchema = z.string();
+
 export const roleKeys = {
   all: ["roles"] as const,
   list: (values: z.infer<typeof getPaginatedRolesSearchSchema>) =>
     [...roleKeys.all, "list", values] as const,
+  permissions: (roleId?: z.infer<typeof roleIdSchema>) =>
+    [...roleKeys.all, { id: roleId }, "permissions"] as const,
 };
 
 export const roleQuries = {
@@ -47,6 +52,18 @@ export const roleQuries = {
 
         return getPaginatedRolesResponseSchema.parse(await res.json());
       },
+      placeholderData: (data) => data,
+    }),
+  permissions: (roleId?: z.infer<typeof roleIdSchema>) =>
+    queryOptions({
+      queryKey: roleKeys.permissions(roleId),
+      queryFn: roleId
+        ? async () => {
+            const res = api.get(`roles/${roleId}/permissions`);
+
+            return getRolePermissionsResponseSchema.parse(await res.json());
+          }
+        : skipToken,
       placeholderData: (data) => data,
     }),
 };

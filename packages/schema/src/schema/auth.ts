@@ -21,11 +21,14 @@ export const authUserSchema = z.object({
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   provider: z.string(),
-  role: z.object({
-    id: z.string(),
-    name: z.string(),
-  }),
-  permissions: z.record(z.string(), z.boolean().default(true)),
+  role: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+    })
+    .nullable(),
+  rolePermissions: z.record(z.string(), z.boolean().default(true)),
+  userPermissions: z.record(z.string(), z.boolean().default(true)),
   createdAt: z.string(),
   updatedAt: z.string().nullable(),
 });
