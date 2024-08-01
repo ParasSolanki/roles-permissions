@@ -86,15 +86,21 @@ export const getUserDetailsResponseSchema = successSchema.extend({
       email: z.string(),
       displayName: z.string().nullable(),
       avatarUrl: z.string().nullable(),
-      role: z
-        .object({
-          id: z.string(),
-          name: z.string(),
-        })
-        .nullable(),
-      permissions: z.record(z.string(), z.boolean()),
+      role: z.object({
+        id: z.string(),
+        name: z.string(),
+      }),
+      rolePermissions: z.record(z.string(), z.boolean()),
+      userPermissions: z.record(z.string(), z.boolean()),
       createdAt: z.string(),
       updatedAt: z.string().nullable(),
     }),
   }),
 });
+
+export const updateUserRoleAndPermissionSchema = z.object({
+  roleId: z.string().min(1, "Role is required"),
+  permissions: z.record(z.string(), z.boolean()),
+});
+
+export const updateUserRoleAndPermissionResponseSchema = successSchema;

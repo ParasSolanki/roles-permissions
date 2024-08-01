@@ -242,7 +242,7 @@ route.openapi(getRolePermissionsRoute, async (c) => {
       .from(permissionsTable)
       .leftJoin(
         rolePermissionsTable,
-        eq(rolePermissionsTable.roleId, permissionsTable.id)
+        eq(rolePermissionsTable.permissionId, permissionsTable.id)
       )
       .where(eq(rolePermissionsTable.roleId, roleId));
 

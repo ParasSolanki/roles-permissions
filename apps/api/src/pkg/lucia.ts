@@ -20,7 +20,7 @@ export function createLucia(opts: LuciaOptions) {
       name: "role-permission-session",
       expires: true,
       attributes: {
-        sameSite: "none",
+        sameSite: "strict",
         // set to `true` when using HTTPS
         secure: opts.environment === "production",
       },

@@ -14,6 +14,8 @@ import {
   getPaginatedUsersSearchSchema,
   getUserDetailsResponseSchema,
   paginatedUsersResponseSchema,
+  updateMeDisplayNameResponseSchema,
+  updateUserRoleAndPermissionSchema,
 } from "@roles-permissions/schema";
 
 const userIdSchema = z.string().openapi({
@@ -89,6 +91,42 @@ export const getUserDetailsRoute = createRoute({
       content: {
         "application/json": {
           schema: getUserDetailsResponseSchema,
+        },
+      },
+    },
+    ...badRequestErrorResponse,
+    ...unauthorizedErrorResponse,
+    ...forbiddenErrorResponse,
+    ...notFoundErrorResponse,
+    ...requestTimeoutErrorResponse,
+    ...tooManyRequestsErrorResponse,
+    ...internalServerErrorResponse,
+  },
+});
+
+export const updateUserRoleAndPermissionRoute = createRoute({
+  path: "/{id}/role-permissions",
+  method: "put",
+  tags: ["Users"],
+  request: {
+    params: z.object({
+      id: userIdSchema,
+    }),
+    body: {
+      description: "User role and permissions",
+      content: {
+        "application/json": {
+          schema: updateUserRoleAndPermissionSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Update user role and permissions",
+      content: {
+        "application/json": {
+          schema: updateMeDisplayNameResponseSchema,
         },
       },
     },

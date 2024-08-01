@@ -12,7 +12,15 @@ export const meKeys = {
   permissions: () => [...meKeys.all, "permissions"] as const,
 };
 
-export type AuthMe = z.output<typeof authResponseSchema>["data"]["user"];
+const authUserSchema = authResponseSchema.shape.data
+  .pick({
+    user: true,
+  })
+  .shape.user.extend({
+    permissions: z.record(z.string(), z.boolean()),
+  });
+
+export type AuthMe = z.output<typeof authUserSchema>;
 
 export const meQuries = {
   session: () =>
