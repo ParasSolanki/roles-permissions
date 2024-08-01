@@ -9,6 +9,7 @@ import {
   getAllUsersRoute,
   getPaginatedUsersRoute,
   getUserDetailsRoute,
+  updateUserRoleAndPermissionRoute,
 } from "../openapi/users.openapi.js";
 import {
   badRequestError,
@@ -219,6 +220,160 @@ route.openapi(getUserDetailsRoute, async (c) => {
       200
     );
   } catch (e) {
+    return internalServerError(c);
+  }
+});
+
+route.use(
+  updateUserRoleAndPermissionRoute.getRoutingPath(),
+  userPermissionMiddleware("users:read"),
+  userPermissionMiddleware("users:edit")
+);
+route.openapi(updateUserRoleAndPermissionRoute, async (c) => {
+  const userId = c.req.valid("param").id;
+  const body = c.req.valid("json");
+  const db = c.get("db");
+
+  try {
+    var [user] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    var [role] = await db
+      .select({
+        id: rolesTable.id,
+        name: rolesTable.name,
+        permissions: sql`
+        case
+          when count(${permissionsTable.id}) = 0 then json('[]')
+          else json_group_array(
+                  json_object('id', ${permissionsTable.id}, 'name', ${permissionsTable.name})
+                )
+        end`
+          .mapWith({
+            mapFromDriverValue(value: string) {
+              return JSON.parse(value) as Array<{
+                id: string;
+                name: string;
+              }>;
+            },
+          })
+          .as("permissions"),
+      })
+      .from(rolesTable)
+      .innerJoin(
+        rolePermissionsTable,
+        eq(rolePermissionsTable.roleId, rolesTable.id)
+      )
+      .innerJoin(
+        permissionsTable,
+        eq(permissionsTable.id, rolePermissionsTable.permissionId)
+      )
+      .where(eq(rolesTable.id, body.roleId));
+
+    var permissions = await db
+      .select({ id: permissionsTable.id, name: permissionsTable.name })
+      .from(permissionsTable);
+
+    if (!user) return notFoundError(c, "User does not exists");
+
+    if (!role) return badRequestError(c, { message: "Role does not exists" });
+  } catch (e) {
+    return internalServerError(c);
+  }
+
+  // All permissoin names
+  const permissionNames = new Set(permissions.map((p) => p.name));
+
+  // All valid requested role and user permissions
+  const valdRequestedPermissions = Object.entries(body.permissions)
+    .filter(([name]) => permissionNames.has(name))
+    .reduce((acc, [name, value]) => ({ ...acc, [name]: value }), {});
+
+  // All valid role permission names
+  const rolePermissionNames = new Set(role.permissions.map((p) => p.name));
+  // All valid requested user permissions outside their role permissions
+  const validRequestedUserPermissions = Object.entries(valdRequestedPermissions)
+    .filter(([name]) => !rolePermissionNames.has(name))
+    .reduce((acc, [name, value]) => ({ ...acc, [name]: value }), {});
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(usersTable)
+        .set({ roleId: body.roleId })
+        .where(eq(usersTable.id, userId));
+
+      // Get current user permissions of user
+      const currentUserPermissions = await tx
+        .select({ name: permissionsTable.name })
+        .from(permissionsTable)
+        .innerJoin(
+          userPermissionsTable,
+          eq(userPermissionsTable.permissionId, permissionsTable.id)
+        )
+        .innerJoin(usersTable, eq(usersTable.id, userPermissionsTable.userId))
+        .where(eq(usersTable.id, userId));
+
+      const currentUserPermissionNames = new Set(
+        currentUserPermissions.map((p) => p.name)
+      );
+
+      // Permissions to add
+      const userPermissionsToAdd = Object.entries(validRequestedUserPermissions)
+        .filter(
+          ([name, value]) => value && !currentUserPermissionNames.has(name)
+        )
+        .map(([name, _]) => name);
+
+      const userPermissionsToRemove = [
+        // Permissions to remove
+        ...Object.entries(validRequestedUserPermissions)
+          .filter(
+            ([name, value]) => !value && currentUserPermissionNames.has(name)
+          )
+          .map(([name, _]) => name),
+        // Permissions which are in user permissions but already getting covered by that role.
+        ...currentUserPermissions
+          .filter((p) => rolePermissionNames.has(p.name))
+          .map((p) => p.name),
+      ];
+
+      // Add permissions
+      if (userPermissionsToAdd.length) {
+        const permissionToAddIds = await tx
+          .select({ id: permissionsTable.id })
+          .from(permissionsTable)
+          .where(inArray(permissionsTable.name, userPermissionsToAdd));
+
+        await tx
+          .insert(userPermissionsTable)
+          .values(
+            permissionToAddIds.map((p) => ({ userId, permissionId: p.id }))
+          );
+      }
+      // Remove permissions
+      if (userPermissionsToRemove.length) {
+        const permissionToRemoveIds = await tx
+          .select({ id: permissionsTable.id })
+          .from(permissionsTable)
+          .where(inArray(permissionsTable.name, userPermissionsToRemove));
+
+        await tx.delete(userPermissionsTable).where(
+          and(
+            eq(userPermissionsTable.userId, userId),
+            inArray(
+              userPermissionsTable.permissionId,
+              permissionToRemoveIds.map((p) => p.id)
+            )
+          )
+        );
+      }
+    });
+
+    return c.json({ ok: true }, 200);
+  } catch (e) {
+    console.log(e);
     return internalServerError(c);
   }
 });

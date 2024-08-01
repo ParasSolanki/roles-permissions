@@ -63,11 +63,18 @@ route.openapi(getPaginatedPermissionsRoute, async (c) => {
           roles: sql`
               case
                 when count(${rolesTable.id}) = 0 then json('[]')
-                else json_group_array(
+                else json(json_group_array(
                         json_object('id', ${rolesTable.id}, 'name', ${rolesTable.name})
-                      )
+            ))
               end`
-            .mapWith(String)
+            .mapWith({
+              mapFromDriverValue(value: string) {
+                return JSON.parse(value) as Array<{
+                  id: string;
+                  name: string;
+                }>;
+              },
+            })
             .as("roles"),
         })
         .from(permissionsTable)
@@ -99,10 +106,7 @@ route.openapi(getPaginatedPermissionsRoute, async (c) => {
       {
         ok: true,
         data: {
-          permissions: permissions.map((p) => ({
-            ...p,
-            roles: JSON.parse(p.roles),
-          })),
+          permissions,
           pagination: {
             page,
             perPage,

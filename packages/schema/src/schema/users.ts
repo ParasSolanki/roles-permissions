@@ -99,3 +99,10 @@ export const getUserDetailsResponseSchema = successSchema.extend({
     }),
   }),
 });
+
+export const updateUserRoleAndPermissionSchema = z.object({
+  roleId: z.string().min(1, "Role is required"),
+  permissions: z.record(z.string(), z.boolean()),
+});
+
+export const updateUserRoleAndPermissionResponseSchema = successSchema;
