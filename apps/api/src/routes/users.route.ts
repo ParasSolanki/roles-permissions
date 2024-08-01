@@ -206,12 +206,18 @@ route.openapi(getUserDetailsRoute, async (c) => {
       return notFoundError(c, "User does not exists");
     }
 
+    const role = user.role;
+
+    if (!role)
+      return badRequestError(c, { message: "User role does not exists" });
+
     return c.json(
       {
         ok: true,
         data: {
           user: {
             ...user,
+            role,
             rolePermissions: getParsedPermissions(user.rolePermissions),
             userPermissions: getParsedPermissions(user.userPermissions),
           },

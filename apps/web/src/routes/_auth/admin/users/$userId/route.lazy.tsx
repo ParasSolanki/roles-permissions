@@ -1,8 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  updateMeDisplayNameResponseSchema,
+  updateUserRoleAndPermissionSchema,
+} from "@roles-permissions/schema";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { permissionQuries } from "~/common/keys/permissions";
 import { roleQuries } from "~/common/keys/roles";
-import { usersQuries } from "~/common/keys/users";
+import { usersKeys, usersQuries } from "~/common/keys/users";
 import type { UserDetails } from "~/common/keys/users";
 import { Badge } from "~/components/ui/badge";
 import {
@@ -39,9 +44,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { InfoIcon, Slash } from "lucide-react";
+import { api } from "~/utils/api-client";
+import { HTTPError } from "ky";
+import { InfoIcon, Loader2Icon, Slash } from "lucide-react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 
 export const Route = createLazyFileRoute("/_auth/admin/users/$userId")({
   component: UserDetailsPage,
@@ -102,11 +111,39 @@ function UserDetailsPage() {
 }
 
 function UserRolePermissions({ user }: { user: UserDetails }) {
-  const [roleId, setRoleId] = React.useState(user.role?.id);
+  const [roleId, setRoleId] = React.useState(user.role.id);
+  const queryClient = useQueryClient();
+  const { data: roles, isPending: roleIsPending } = useQuery(roleQuries.all());
+  const { data: permissions, isPending: permissionIsPending } = useQuery(
+    permissionQuries.all(),
+  );
+  const { data: rolePermissions, isPending: rolePermissionIsPending } =
+    useQuery(roleQuries.permissions(roleId));
 
-  const { data: roles } = useQuery(roleQuries.all());
-  const { data: permissions } = useQuery(permissionQuries.all());
-  const { data: rolePermissions } = useQuery(roleQuries.permissions(roleId));
+  const { mutate, isPending } = useMutation({
+    mutationKey: ["users", { id: user.id }, "role-permissions", "edit"],
+    mutationFn: async (
+      values: z.output<typeof updateUserRoleAndPermissionSchema>,
+    ) => {
+      const res = api.put(`users/${user.id}/role-permissions`, {
+        json: values,
+      });
+
+      return updateMeDisplayNameResponseSchema.parse(await res.json());
+    },
+    onSuccess: () => {
+      toast.success("User role and permissions updated");
+      queryClient.invalidateQueries({ queryKey: usersKeys.details(user.id) });
+    },
+    onError: async (error) => {
+      if (error instanceof HTTPError) {
+        const data = await error.response.json();
+        if (data.message) toast.error(data.message);
+      } else {
+        toast.error("Something went wrong while updating role and permissions");
+      }
+    },
+  });
 
   const rolePermissionsMap = React.useMemo(() => {
     if (!rolePermissions) return {};
@@ -142,20 +179,31 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
   }, [permissions?.data.permissions, user.userPermissions, rolePermissionsMap]);
 
   const form = useForm({
+    resolver: zodResolver(updateUserRoleAndPermissionSchema),
     values: {
       roleId,
       permissions: fPermissions,
     },
   });
 
-  function onSubmit(values: unknown) {
-    console.log(values);
-  }
+  React.useEffect(() => {
+    if (user.role?.id) setRoleId(user.role.id);
+  }, [user.role?.id]);
+
+  const isDisabled =
+    roleIsPending ||
+    permissionIsPending ||
+    rolePermissionIsPending ||
+    isPending;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset className="space-y-4">
+      <form onSubmit={form.handleSubmit((values) => mutate(values))}>
+        <fieldset
+          className="space-y-4"
+          aria-disabled={isDisabled}
+          disabled={isDisabled}
+        >
           <div className="max-w-2xl">
             <FormField
               control={form.control}
@@ -164,11 +212,11 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
                 <FormItem>
                   <FormLabel>Role</FormLabel>
                   <Select
+                    value={roleId}
                     onValueChange={(value) => {
                       field.onChange(value);
                       setRoleId(value);
                     }}
-                    defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -197,6 +245,16 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Permissions</h3>
             <ul className="space-y-2">
+              {permissionIsPending &&
+                Array.from({ length: 5 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-col items-start space-y-3 rounded-md border p-4"
+                  >
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="mt-2 h-4 w-44" />
+                  </div>
+                ))}
               {permissions?.data.permissions.map((p) => (
                 <li key={p.id}>
                   <FormField
@@ -249,10 +307,16 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
           </div>
 
           <div className="flex items-center justify-end space-x-4">
-            <Button type="button" variant="secondary">
-              Cancel
+            <Button
+              type="submit"
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+            >
+              {isPending && (
+                <Loader2Icon className="mr-1 size-4 animate-spin" />
+              )}
+              Save
             </Button>
-            <Button type="submit">Save</Button>
           </div>
         </fieldset>
       </form>
