@@ -3,7 +3,12 @@ import {
   updateMeDisplayNameResponseSchema,
   updateUserRoleAndPermissionSchema,
 } from "@roles-permissions/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { permissionQuries } from "~/common/keys/permissions";
 import { roleQuries } from "~/common/keys/roles";
@@ -58,9 +63,11 @@ export const Route = createLazyFileRoute("/_auth/admin/users/$userId")({
 
 function UserDetailsPage() {
   const params = Route.useParams();
-  const { data, isPending } = useQuery(usersQuries.details(params.userId));
+  const { data, isPending } = useSuspenseQuery(
+    usersQuries.details(params.userId),
+  );
 
-  const user = data?.data.user;
+  const user = data.data.user;
 
   return (
     <>
@@ -93,32 +100,40 @@ function UserDetailsPage() {
         </BreadcrumbList>
       </Breadcrumb>
       <div className="space-y-4">
-        <div>
-          {isPending && !data && <Skeleton className="h-8 w-20" />}
-          {!isPending && data?.data.user.displayName && (
-            <h1 className="text-4xl font-black">
-              {data.data.user.displayName}
-            </h1>
-          )}
-        </div>
+        {user.displayName && (
+          <h1 className="text-4xl font-black">{user.displayName}</h1>
+        )}
 
         <Separator className="mt-4" />
 
-        {user && <UserRolePermissions user={user} />}
+        {user && (
+          <React.Suspense fallback={<UserRolePermissionsLoading />}>
+            <UserRolePermissions user={user} />
+          </React.Suspense>
+        )}
       </div>
     </>
   );
 }
 
+function UserRolePermissionsLoading() {
+  return Array.from({ length: 5 }, (_, i) => (
+    <div
+      key={i}
+      className="flex flex-col items-start space-y-3 rounded-md border p-4"
+    >
+      <Skeleton className="h-4 w-28" />
+      <Skeleton className="mt-2 h-4 w-44" />
+    </div>
+  ));
+}
+
 function UserRolePermissions({ user }: { user: UserDetails }) {
   const [roleId, setRoleId] = React.useState(user.role.id);
   const queryClient = useQueryClient();
-  const { data: roles, isPending: roleIsPending } = useQuery(roleQuries.all());
-  const { data: permissions, isPending: permissionIsPending } = useQuery(
-    permissionQuries.all(),
-  );
-  const { data: rolePermissions, isPending: rolePermissionIsPending } =
-    useQuery(roleQuries.permissions(roleId));
+  const { data: roles } = useSuspenseQuery(roleQuries.all());
+  const { data: permissions } = useSuspenseQuery(permissionQuries.all());
+  const { data: rolePermissions } = useQuery(roleQuries.permissions(roleId));
 
   const { mutate, isPending } = useMutation({
     mutationKey: ["users", { id: user.id }, "role-permissions", "edit"],
@@ -190,19 +205,13 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
     if (user.role?.id) setRoleId(user.role.id);
   }, [user.role?.id]);
 
-  const isDisabled =
-    roleIsPending ||
-    permissionIsPending ||
-    rolePermissionIsPending ||
-    isPending;
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((values) => mutate(values))}>
         <fieldset
           className="space-y-4"
-          aria-disabled={isDisabled}
-          disabled={isDisabled}
+          aria-disabled={isPending}
+          disabled={isPending}
         >
           <div className="max-w-2xl">
             <FormField
@@ -245,17 +254,7 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Permissions</h3>
             <ul className="space-y-2">
-              {permissionIsPending &&
-                Array.from({ length: 5 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col items-start space-y-3 rounded-md border p-4"
-                  >
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="mt-2 h-4 w-44" />
-                  </div>
-                ))}
-              {permissions?.data.permissions.map((p) => (
+              {permissions.data.permissions.map((p) => (
                 <li key={p.id}>
                   <FormField
                     control={form.control}
@@ -309,8 +308,8 @@ function UserRolePermissions({ user }: { user: UserDetails }) {
           <div className="flex items-center justify-end space-x-4">
             <Button
               type="submit"
-              aria-disabled={isDisabled}
-              disabled={isDisabled}
+              aria-disabled={isPending}
+              disabled={isPending}
             >
               {isPending && (
                 <Loader2Icon className="mr-1 size-4 animate-spin" />
