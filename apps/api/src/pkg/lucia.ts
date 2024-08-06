@@ -15,12 +15,12 @@ export function createLucia(opts: LuciaOptions) {
   });
 
   const lucia = new _Lucia(adapter, {
-    sessionExpiresIn: new TimeSpan(1, "d"),
+    sessionExpiresIn: new TimeSpan(3, "d"),
     sessionCookie: {
       name: "role-permission-session",
       expires: true,
       attributes: {
-        sameSite: "strict",
+        sameSite: "none",
         // set to `true` when using HTTPS
         secure: opts.environment === "production",
       },
